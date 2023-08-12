@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "race-rl"
+version = "0.1.0"
+description = ""
+authors = ["michal_niedbala <mniedbala99@gmail.com>"]
+readme = "README.md"
+packages = [{include = "race_rl"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+numpy = "^1.24"
+scipy = "^1.10"
+transforms3d = "^0.4.1"
+matplotlib = "^3.7"
+pytest = "^7.3"
+pybullet = "^3.2.5"
+gymnasium = "^0.28"
+stable-baselines3 = "^2.0.0"
+gym-pybullet-drones = {path = "gym-pybullet-drones"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
