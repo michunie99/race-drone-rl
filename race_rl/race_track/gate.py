@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pybullet as p
-
+import numpy as np
 
 class Gate:
     def __init__(
@@ -15,24 +15,21 @@ class Gate:
         # Save position and calculate normal
         self.pos=pos
         self.quat=quat
-        self.normal=self._calculateNormal()
+        self.scale=scale
         # Load asset to pybullet client
         self.urdf_id=self._loadBullet(asset, clientID)
 
     def _loadBullet(self, asset: Path, clientID: int) -> int:
+        # import pdb; pdb.set_trace()
         urdf_id=p.loadURDF(
                 str(asset),
                 self.pos,
                 self.quat,
                 globalScaling=self.scale,
                 useFixedBase=1,
-                physicsCilentID=clientID,
+                physicsClientId=clientID,
         )
         return urdf_id
-
-    def _calculateNormal(self) -> np.array:
-        unit=np.array([-1, 0, 0])
-        return p.multiplyTransforms(unit, self.quat)
 
     def field_reward(self, d_pos: np.array) -> float:
         diff_vec = d_pose-self.pos 

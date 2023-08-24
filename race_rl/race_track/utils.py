@@ -1,13 +1,24 @@
 from pathlib import Path
 import csv
-from typing import Union
+from typing import Union, Dict, Tuple, Any
 from collections import deque
 
 import pybullet as p
 import numpy as np
+import yaml
 
+def readYAML(config_file: Union[Path, str]) -> Any:
+    with open(config_file) as f:
+        config=yaml.load(f)
+    return config
 
-def calculateRelativeObseration(obj1, obj2):
+def readCSV(track_file: Union[Path, str]):
+    with open(track_file) as f:
+        reader=csv.reader(f)
+        data=list(reader)
+    return data
+
+def calculateRelativeObseration(obj1: np.array , obj2: np.array) -> np.array:
     """
     obj = ([x, y, z], [qx, qy, qz, qw])
     """
@@ -26,10 +37,9 @@ def calculateRelativeObseration(obj1, obj2):
     # Step 3 - calculate angle between normals
     _, alpha = p.getAxisAngleFromQuaternion(quat_diff)
     return np.array([r, theta, phi, alpha])
-    # return np.array([np.linalg.norm(vec_diff), *quat_diff]).astype('float64')
 
 
-def cart2shp(cart):
+def cart2shp(cart: np.array) -> Tuple[float, float, float]:
     xy = np.sqrt(cart[0]**2 + cart[1]**2)
     r = np.sqrt(xy**2 + cart[2]**2)
     theta = np.arctan2(cart[1], cart[0]) # for elevation angle defined from Z-axis down

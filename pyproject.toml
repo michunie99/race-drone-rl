@@ -17,6 +17,7 @@ pybullet = "^3.2.5"
 gymnasium = "^0.28"
 stable-baselines3 = "^2.0.0"
 gym-pybullet-drones = {path = "gym-pybullet-drones"}
+pyyaml = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]
