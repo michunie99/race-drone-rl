@@ -26,14 +26,13 @@ class Segment:
         g_obj=self.gate.pos, self.gate.ort
         return calculateRelativeObseration(d_obj, g_obj)        
 
-    #@property
     def startPosition(self):
         pos=self.start_pos+self.segment/2
         g_dir=self.segment/self.norm_segment
         # Cast to Z axis
         z_cast=np.dot(g_dir, np.array([0,0,1]))
         # Calculate projecion on XY plane
-        xy_cast=self.segment-z_cast
+        xy_cast=g_dir-np.array([0,0,z_cast])
         oz_angel=np.arctan2(xy_cast[1], xy_cast[0])
-        ort=p.getQuaternionFromEuler([oz_angel, 0, 0])
+        ort=p.getQuaternionFromEuler([0, 0, oz_angel])
         return pos, ort
