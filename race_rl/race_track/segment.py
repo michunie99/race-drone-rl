@@ -36,3 +36,12 @@ class Segment:
         oz_angel=np.arctan2(xy_cast[1], xy_cast[0])
         ort=p.getQuaternionFromEuler([0, 0, oz_angel])
         return pos, ort
+
+    def segmentFinished(self, d_pos: np.array) -> bool:
+        # Calculate distance to the plane defined by the gate'
+        diff_vec=self.gate.pos-d_pos
+        t_pos, _ = p.invertTransform(
+            position=diff_vec,
+            orientation=self.gate.quat,
+        )
+        return t_pos[0] > 0
