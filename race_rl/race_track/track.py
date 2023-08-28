@@ -51,6 +51,5 @@ class Track:
             segments.append(segment)
         return segments
 
-    # TODO - add  relative observation creation
     def _calculateRelativeObservations(self):
         raise "Not implementd"
