@@ -23,7 +23,7 @@ class Segment:
         return projection/self.norm_segment
     
     def getRelativeObs(self, d_obj: Tuple[np.array, np.array]) -> np.array:
-        g_obj=self.gate.pos, self.gate.ort
+        g_obj=self.gate.pos, self.gate.quat
         return calculateRelativeObseration(d_obj, g_obj)        
 
     def startPosition(self):

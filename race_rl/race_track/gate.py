@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 
 import pybullet as p
 import numpy as np
@@ -17,22 +18,25 @@ class Gate:
         self.quat=quat
         self.scale=scale
         # Load asset to pybullet client
-        self.urdf_id=self._loadBullet(asset, clientID)
+        self.load_bullet=self.loadBullet(asset, clientID)
+        self.load_bullet()
 
-    def _loadBullet(self, asset: Path, clientID: int) -> int:
+    def loadBullet(self, asset: Path, clientID: int) -> Callable:
         # import pdb; pdb.set_trace()
-        urdf_id=p.loadURDF(
-                str(asset),
-                self.pos,
-                self.quat,
-                globalScaling=self.scale,
-                useFixedBase=1,
-                physicsClientId=clientID,
-        )
-        return urdf_id
+        def func():
+            urdf_id=p.loadURDF(
+                    str(asset),
+                    self.pos,
+                    self.quat,
+                    globalScaling=self.scale,
+                    useFixedBase=1,
+                    physicsClientId=clientID,
+            )
+            self.urdf_id=urdf_id
+        return func
 
     def field_reward(self, d_pos: np.array) -> float:
-        diff_vec = d_pose-self.pos 
+        diff_vec = d_pos-self.pos 
         # Transform drone position to gate reference frame
         t_pos, _ = p.invertTransform(position=diff_vec,
                                      orientation=self.quat)
@@ -41,7 +45,7 @@ class Gate:
         # TODO - check the cooeficent of 1.5
         f = lambda x: max(1-x/1.5, 0.0)
         v = lambda x, y: max((1- y) * (x/6.0), 0.05)
-        filed_reward = -f(dp)**2 * (1 - np.exp(- 0.5 * dn**2 / v(wg, f(dp))))
+        filed_reward = -f(dp)**2 * (1 - np.exp(- 0.5 * dn**2 / v(1.0, f(dp))))
         return filed_reward
     
     

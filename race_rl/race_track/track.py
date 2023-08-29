@@ -51,3 +51,7 @@ class Track:
             segments.append(segment)
         return segments
 
+    def reloadGates(self):
+        # Reload gate to the enviroment aster bullet reset
+        for gate in self.gates:
+            gate.load_bullet()
