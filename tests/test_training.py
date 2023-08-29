@@ -8,6 +8,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNorm
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 import numpy as np
+from multiprocessing import Manager, Value
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -18,9 +19,11 @@ from race_rl.env import RaceAviary
 
 TRACK_PATH="assets/tracks/2_gates.csv"
 
-def make_env(gui):
+def make_env(gui, init_segment, start_pos):
     env_builder = lambda: gym.make(
         "race-aviary-v0",
+        init_segment=init_segment,
+        start_dict=start_pos,
         drone_model=DroneModel('cf2x'),
         # TODO - change the intialil_xyzs
         physics=Physics('pyb'),
@@ -38,8 +41,13 @@ def make_env(gui):
 
 def run():
     # Create enviroments
-        
-    envs = [make_env(True) for _ in range(2)]
+    
+    # Create primitives for synchronization
+    manager = Manager()
+    start_pos = manager.dict()
+    init_segment=Value('i', 0)
+
+    envs = [make_env(True, init_segment, start_pos) for _ in range(1)]
     vec_env = SubprocVecEnv(envs)
         
     vec_env = VecNormalize(
@@ -89,6 +97,7 @@ def run():
         callback=callbacks,
         tb_log_name=run_id,
     )
+
     
 if __name__ == "__main__":
 

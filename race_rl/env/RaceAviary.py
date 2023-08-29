@@ -18,11 +18,10 @@ from race_rl.race_track import Track
 class RaceAviary(BaseAviary):
     """Multi-drone environment class for control applications."""
     ################################################################################
-    init_segment=Value('i', 0)
-    manager = Manager()
-    start_pos = manager.dict()
 
     def __init__(self,
+                 init_segment,
+                 start_dict,
                  drone_model: DroneModel=DroneModel.CF2X,
                  initial_xyzs=None,
                  initial_rpys=None,
@@ -180,16 +179,9 @@ class RaceAviary(BaseAviary):
         self.coef_gate_filed=coef_gate_filed
         self.coef_omega=coef_omega
         self.infos={}
-        self.start_segment_idx=self.init_segment.value%self.NUMBER_GATES
-        with self.init_segment.get_lock():
-            self.init_segment.value += 1
-
-        # TODO - should work but not sure
-        try:
-            manager = RaceAviary.manager
-        except AttributeError:
-            manager = RaceAviary.manager = Manager()
-
+        self.start_segment_idx=init_segment.value%self.NUMBER_GATES
+        with init_segment.get_lock():
+            init_segment.value += 1
 
         # Track succes rate of a segment
         self.env_segment=self.track.segments[self.start_segment_idx]
@@ -209,7 +201,9 @@ class RaceAviary(BaseAviary):
             0.0, 0.0, 0.0,
             -1.0, -1.0, -1.0, -1.0,
         ])
-        RaceAviary.start_pos[self.start_segment_idx] =  deque([initial_state], maxlen=20)
+        self.start_dict=start_dict
+        self.start_dict[self.start_segment_idx] = deque([initial_state], maxlen=20)
+        #start_dict[self.start_segment_idx] = [initial_state]
 
         self.INIT_XYZS = start_pos
         self.INIT_RPYS = start_quat
@@ -237,12 +231,12 @@ class RaceAviary(BaseAviary):
             -np.inf, -np.inf, -np.inf, 
             -1, -1, -1, -1, -1, -1, -1, -1, -1, 
             -np.inf, -np.inf, -np.inf,
-            *[0, -2*np.pi, -np.pi]*self.gates_lookup])
+            *[0, -2*np.pi, -np.pi, 0]*self.gates_lookup])
         obs_upper_bound=np.array([
             np.inf, np.inf, np.inf, 
             1, 1, 1, 1, 1, 1, 1, 1, 1, 
             np.inf, np.inf, np.inf,
-            *[np.inf, 2*np.pi, np.pi]*self.gates_lookup])
+            *[np.inf, 2*np.pi, np.pi, np.pi]*self.gates_lookup])
         return spaces.Box(
             low=obs_lower_bound,
             high=obs_upper_bound,
@@ -423,9 +417,11 @@ class RaceAviary(BaseAviary):
     ################################################################################
     def _housekeeping(self):
         # Sample some initial statring possition
-        curr_start = RaceAviary.start_pos[self.start_segment_idx]
+        curr_start = self.start_dict[self.start_segment_idx]
         # Dicinary constains entire state of the drone 
         state = sample(list(curr_start), 1)[0]
+        self.current_segment=self.env_segment
+        self.curr_segment_idx=self.start_segment_idx
 
         #### Initialize/reset counters and zero-valued variables ###
         self.RESET_TIME = time.time()
@@ -550,9 +546,10 @@ class RaceAviary(BaseAviary):
                 self.runs.append(True)
             if sum(list(self.runs)) / 100 > 0.8:
                 # TODO - Should it have a lock ????
-                start_state = RaceAviary.start_pos.get(self.start_segment_idx+1, deque(maxlen=20))
+                start_state = self.start_dict.get(self.start_segment_idx+1, deque(maxlen=20))
                 star_state.append(state)
-                RaceAviary.start_pos[self.start_segment_idx+1] = start_state
+                self.start_dict[self.start_segment_idx+1] = start_state
+        # Add if finished segment but not scored
 
             self.curr_segment_idx += 1
             self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
