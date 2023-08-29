@@ -36,12 +36,15 @@ class RaceAviary(BaseAviary):
                  track_path='assets/tracks/circle_track.csv',
                  asset_path='assets',
                  gates_lookup=2,
-                 world_box=np.array([10,10,10]),
+                 world_box=np.array([10,10,5]),
                  type="train",
                  seed=42,
                  coef_gate_filed=0.001,
                  coef_omega=0.001,
-                 ):
+                 runs_que_len=100,
+                 start_que_len=20,
+                 acceptance_thr=0.8,
+                    ):
 
         #### Constants #############################################
         self.G = 9.8
@@ -179,16 +182,17 @@ class RaceAviary(BaseAviary):
         self.coef_gate_filed=coef_gate_filed
         self.coef_omega=coef_omega
         self.infos={}
-        self.start_segment_idx=init_segment.value%self.NUMBER_GATES
-        with init_segment.get_lock():
-            init_segment.value += 1
-
+        self.start_segment_idx=init_segment%self.NUMBER_GATES
+        # with init_segment.get_lock():
+        #     init_segment.value += 1
+    
         # Track succes rate of a segment
         self.env_segment=self.track.segments[self.start_segment_idx]
         self.curr_segment_idx=self.start_segment_idx
         self.current_segment=self.env_segment
         # Queue with last 100 runs successes
-        self.runs=deque(maxlen=100)
+        self.runs=deque(maxlen=runs_que_len)
+        self.runs_que_len=runs_que_len
         start_pos, start_quat=self.env_segment.startPosition()
         self.prev_projection=self.env_segment.projectPoint(start_pos)
         # TODO - check if the 20 last sucessuf runs is enougth
@@ -202,7 +206,9 @@ class RaceAviary(BaseAviary):
             -1.0, -1.0, -1.0, -1.0,
         ])
         self.start_dict=start_dict
-        self.start_dict[self.start_segment_idx] = deque([initial_state], maxlen=20)
+        self.start_dict[self.start_segment_idx] = deque([initial_state], maxlen=start_que_len)
+        self.start_que_len=start_que_len
+        self.acceptance_thr=acceptance_thr
         #start_dict[self.start_segment_idx] = [initial_state]
 
         self.INIT_XYZS = start_pos
@@ -286,7 +292,7 @@ class RaceAviary(BaseAviary):
         rot_matrix = p.getMatrixFromQuaternion(state[3:7])
 
         obs = np.hstack([state[10:13], 
-                         rot_matrix, 
+                         rot_matrix, # Change to quatetions
                          state[13:16], 
                          *gate_lookup])
         
@@ -344,11 +350,9 @@ class RaceAviary(BaseAviary):
         state = self._getDroneStateVector(0)
         pos = state[0:3]
 
-     
         if self.curr_segment_idx == self.NUMBER_GATES:
             terminated = True
 
-        
         self.infos["TimeLimit.terminated"] = terminated
         return terminated
            
@@ -541,17 +545,17 @@ class RaceAviary(BaseAviary):
              ):
         state = self._getDroneStateVector(0)
         pos = state[0:3]
-        if self._gateScored() and self.current_segment.segmentFinished(pos):
-            if self.curr_segment_idx == self.start_segment_idx:
+        if self.curr_segment_idx == self.start_segment_idx:
+            if self._gateScored() and self.current_segment.segmentFinished(pos):
                 self.runs.append(True)
-            if sum(list(self.runs)) / 100 > 0.8:
-                # TODO - Should it have a lock ????
-                start_state = self.start_dict.get(self.start_segment_idx+1, deque(maxlen=20))
-                star_state.append(state)
-                self.start_dict[self.start_segment_idx+1] = start_state
-        # Add if finished segment but not scored
+                if sum(list(self.runs)) / self.runs_que_len > self.acceptance_thr:
+                    start_state = self.start_dict.get(self.start_segment_idx+1, deque(maxlen=self.start_que_len))
+                    star_state.append(state)
+                    self.start_dict[self.start_segment_idx+1] = start_state
+                self.curr_segment_idx += 1
+                self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
+            else:
+                self.runs.append(False)
 
-            self.curr_segment_idx += 1
-            self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
 
         return super().step(action)

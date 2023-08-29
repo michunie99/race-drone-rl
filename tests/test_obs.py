@@ -3,9 +3,8 @@ import numpy as np
 import pybullet as p
 from multiprocessing import Manager, Value
 manager=Manager()
-init_segment=Value('i', 0)
 start_pos = manager.dict()
-env = RaceAviary(init_segment, start_pos, gui=True,track_path='assets/tracks/gates_inline.csv') 
+env = RaceAviary(init_segment=1, start_dict=start_pos, gui=True,track_path='assets/tracks/2_gates.csv') 
 env.reset()
 
 p.setGravity(0, 0, 0, physicsClientId=env.CLIENT)

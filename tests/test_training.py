@@ -19,10 +19,10 @@ from race_rl.env import RaceAviary
 
 TRACK_PATH="assets/tracks/2_gates.csv"
 
-def make_env(gui, init_segment, start_pos):
+def make_env(gui, num, init_segment, start_pos):
     env_builder = lambda: gym.make(
         "race-aviary-v0",
-        init_segment=init_segment,
+        init_segment=num,
         start_dict=start_pos,
         drone_model=DroneModel('cf2x'),
         # TODO - change the intialil_xyzs
@@ -47,14 +47,14 @@ def run():
     start_pos = manager.dict()
     init_segment=Value('i', 0)
 
-    envs = [make_env(True, init_segment, start_pos) for _ in range(1)]
+    envs = [make_env(True, i ,init_segment, start_pos) for i in range(2)]
     vec_env = SubprocVecEnv(envs)
         
-    vec_env = VecNormalize(
-        vec_env,
-        norm_obs=True,
-        norm_reward=True,
-    )
+    # vec_env = VecNormalize(
+    #     vec_env,
+    #     norm_obs=True,
+    #     norm_reward=True,
+    # )
 
     # Add monitor wrapper
     vec_env = VecMonitor(
@@ -90,10 +90,11 @@ def run():
         seed=42,
         verbose=1,
         tensorboard_log="./logs/tensor_board/", 
+        n_steps=512,
     )
 
     model.learn(
-        total_timesteps=1_000_000,
+        total_timesteps=200_000,
         callback=callbacks,
         tb_log_name=run_id,
     )
