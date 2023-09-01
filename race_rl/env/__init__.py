@@ -1,4 +1,4 @@
-from .RaceAviary import RaceAviary
+from .RaceAviary import RaceAviary, DeployType
 from gymnasium.envs.registration import register
 
 register(

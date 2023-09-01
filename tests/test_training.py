@@ -15,9 +15,9 @@ from wandb.integration.sb3 import WandbCallback
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 #from src.build_network import DronePolicy
-from race_rl.env import RaceAviary
+from race_rl.env import RaceAviary, DeployType
 
-TRACK_PATH="assets/tracks/2_gates.csv"
+TRACK_PATH="assets/tracks/single_gate.csv"
 
 def make_env(gui, num, init_segment, start_pos):
     env_builder = lambda: gym.make(
@@ -34,7 +34,7 @@ def make_env(gui, num, init_segment, start_pos):
         gates_lookup=2,
         track_path=TRACK_PATH,
         user_debug_gui=False, 
-        coef_gate_filed=0.001,
+        coef_gate_filed=0.01,
         coef_omega=0.0001,
     )
     return env_builder
@@ -47,14 +47,14 @@ def run():
     start_pos = manager.dict()
     init_segment=Value('i', 0)
 
-    envs = [make_env(True, i ,init_segment, start_pos) for i in range(2)]
+    envs = [make_env(True, i ,init_segment, start_pos) for i in range(1)]
     vec_env = SubprocVecEnv(envs)
         
-    # vec_env = VecNormalize(
-    #     vec_env,
-    #     norm_obs=True,
-    #     norm_reward=True,
-    # )
+    vec_env = VecNormalize(
+        vec_env,
+        norm_obs=True,
+        norm_reward=True,
+    )
 
     # Add monitor wrapper
     vec_env = VecMonitor(
@@ -74,7 +74,7 @@ def run():
     callbacks = []
         
     callbacks.append(CheckpointCallback(
-            save_freq=1000,
+            save_freq=1000_000,
             save_path=f"./logs/models/{run_id}",
             name_prefix=f"{run_id}_race_model",
             save_replay_buffer=True,
@@ -83,18 +83,19 @@ def run():
     
     model = PPO(
         #DronePolicy,
-        "MlpPolicy",
+        "MlpPolicy", 
         vec_env,
         learning_rate=0.001,
         gamma=0.98,
         seed=42,
         verbose=1,
         tensorboard_log="./logs/tensor_board/", 
-        n_steps=512,
+        n_steps=180,
+        #n_steps=1024,
     )
 
     model.learn(
-        total_timesteps=200_000,
+        total_timesteps=1_000_000,
         callback=callbacks,
         tb_log_name=run_id,
     )
