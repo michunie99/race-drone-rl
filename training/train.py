@@ -32,11 +32,14 @@ def parse_args():
                         help="Number of time steps to run trainign")
     parser.add_argument("--num-valid", type=int, default=10,
                         help="Number of validation enviroments")
-    
+    parser.add_argument("--pb-freq", type=int, default=240,
+                        help="Simulator frequency in Hz")
+    parser.add_argument("--crt-freq", type=int, default=60,
+                        help="Simulator frequency in Hz")
+
     # TODO - add validation runs
     parser.add_argument("--time-valid", type=int, default=1_000,
                         help="Number of steps between validation steps")
- 
     parser.add_argument("--model-save-freq", type=int, default=1_000,
                         help="Frequeny of model save")
     parser.add_argument("--num-env", type=int, default=6,
@@ -45,7 +48,7 @@ def parse_args():
                             help="Path for the track file")
     parser.add_argument("--cpus", type=int, default=1, 
                         help="Number of CPU cores, determines number of vec envs") 
-    parser.add_argument("--gate-lookup", type=int, default=0,
+    parser.add_argument("--gate-lookup", type=int, default=2,
                         help="Gate lookup in the observation space")
     parser.add_argument("--world-box", type=list, default=[5, 5, 3],
                         help="Size of the world box")
@@ -53,16 +56,8 @@ def parse_args():
                         help="Gate filed coefficient in the reward")
     parser.add_argument("--omega-coef", type=float, default=0.00001,
                         help="Angular velocity coefficient in the reward")
-    parser.add_argument("--compl-type", type=ScoreType, default=ScoreType.PLANE,
-                        help="Way of determening if gate was passed succesfully")
-    parser.add_argument("--gate-field-range", type=float, default=-1.5,
-                        help="Gate filed range in [m]")
-    parser.add_argument("--dn-scale", type=float, default=0.7,
-                        help="Scaling factor for the data serach")
-    parser.add_argument("--ort-off", type=tuple, default=(0, 0.1),
-                        help="Offset for the orientation")
-    parser.add_argument("--pos-off", type=tuple, default=(0, 0),
-                        help="Offset for the possition")
+    parser.add_argument("--steps-per-env", type=int, default=512,
+                        help="Number of steps in enviroment to update agent")
     
     # PPO parameters
     parser.add_argument("--learning-rate", "-lr", type=float, default=1e-3,
@@ -93,34 +88,38 @@ def parse_args():
 def make_env(args, gui):
     env_builder = lambda: gym.make(
         "race-aviary-v0",
+        init_segment=num,
+        start_dict=start_pos,
         drone_model=DroneModel('cf2x'),
-        initial_xyzs=np.array([0, 0, 1]).reshape(1, 3), # TODO - add to parser
         # TODO - change the intialil_xyzs
-        initial_rpys=None,
         physics=Physics('pyb'),
-        freq=240,
+        pyb_freq=args.pdb_freq,
+        ctrl_freq=args.crt_freq,
         gui=gui,
         record=False,
         gates_lookup=args.gate_lookup,
+        track_path=TRACK_PATH,
+        gates_lookup=args.gate_lookup,
         world_box_size=args.world_box,
-        track_path=args.track_path,
         user_debug_gui=False, 
-        filed_coef=args.field_coef,
-        omega_coef=args.omega_coef,
-        completion_type=args.compl_type,
-        gate_filed_range=args.gate_field_range,
-        dn_scale=args.dn_scale,
-        ort_off=args.ort_off,
-        pos_off=args.pos_off,
+        coef_gate_filed=0.001,
+        coef_omega=0.0001,
     )
     return env_builder
 
 def run(args):
     # Create enviroments
         
-    envs = [make_env(args, args.gui) for _ in range(args.cpus)]
+    manager = Manager()
+    start_pos = manager.dict()
+    init_segment=Value('i', 0)
+
+    envs = [make_env(args.gui, i ,init_segment, start_pos) for i in range(args.cpus)]
     vec_env = SubprocVecEnv(envs)
-        
+
+    # calcualte number of steps per enviroment
+    env_steps = args.steps_per_env * args.cpus
+
     if args.model_dir and args.run_number:
         model_dir = Path(args.model_dir)
         model_path = model_dir / f"{model_dir.stem}_race_model_{args.run_number}_steps.zip"
@@ -169,7 +168,7 @@ def run(args):
         )
         callbacks.append(WandbCallback(
             gradient_save_freq=1000,
-            #model_save_path=f'models/{run.id}',
+            model_save_path=f'models/{run.id}',
             verbose=2,
             # TODO - what else to add ???
         ))
@@ -189,6 +188,7 @@ def run(args):
             learning_rate=args.learning_rate,
             gamma=args.gamma,
             seed=args.seed,
+            n_steps=env_steps,
             verbose=1,
             tensorboard_log="./logs/tensor_board/", #TODO - run id
         )
