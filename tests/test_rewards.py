@@ -8,9 +8,9 @@ start_pos = manager.dict()
 env = RaceAviary(init_segment=0,
  start_dict=start_pos,
  gui=True,
- track_path='assets/tracks/2_gates.csv',
+ track_path='assets/tracks/single_gate.csv',
  deploy_type=DeployType.TRAINING,
- world_box=np.array([100, 100, 100])) 
+ world_box=np.array([10, 10, 10])) 
 env.reset()
 
 p.setGravity(0, 0, 0, physicsClientId=env.CLIENT)
@@ -30,7 +30,6 @@ while True:
     crash_reward = info["crash_reward"]
     omega_norm = info["omega_norm"]
     print(f"Gate reward: {gate_reward}\nProgress reward: {progress_reward}\nCrash reward: {crash_reward}\nOmega norm: {omega_norm}")
-    input()
     print(observation, reward)
     print(env.curr_segment_idx)
     if truncated or terminated:

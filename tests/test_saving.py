@@ -33,6 +33,7 @@ while True:
     progress_reward = info["progress_reward"]
     crash_reward = info["crash_reward"]
     omega_norm = info["omega_norm"]
+
     # print(f"Gate reward: {gate_reward}\nProgress reward: {progress_reward}\nCrash reward: {crash_reward}\nOmega norm: {omega_norm}") print(observation, reward)
     # print(env.curr_segment_idx)
     if truncated or terminated:

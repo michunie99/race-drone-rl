@@ -34,7 +34,7 @@ def make_env(gui, num, init_segment, start_pos):
         gates_lookup=2,
         track_path=TRACK_PATH,
         user_debug_gui=False, 
-        coef_gate_filed=0.01,
+        coef_gate_filed=0.001,
         coef_omega=0.0001,
     )
     return env_builder
@@ -47,7 +47,7 @@ def run():
     start_pos = manager.dict()
     init_segment=Value('i', 0)
 
-    envs = [make_env(True, i ,init_segment, start_pos) for i in range(1)]
+    envs = [make_env(False, i ,init_segment, start_pos) for i in range(6)]
     vec_env = SubprocVecEnv(envs)
         
     vec_env = VecNormalize(
@@ -70,11 +70,11 @@ def run():
     logs_path = Path(f"./logs/models/{run_id}")
     if not logs_path.exists():
         logs_path.mkdir(parents=True)
-    
+
     callbacks = []
         
     callbacks.append(CheckpointCallback(
-            save_freq=1000_000,
+            save_freq=1_000,
             save_path=f"./logs/models/{run_id}",
             name_prefix=f"{run_id}_race_model",
             save_replay_buffer=True,
@@ -86,11 +86,11 @@ def run():
         "MlpPolicy", 
         vec_env,
         learning_rate=0.001,
-        gamma=0.98,
+        gamma=0.95,
         seed=42,
         verbose=1,
         tensorboard_log="./logs/tensor_board/", 
-        n_steps=180,
+        n_steps=180*6,
         #n_steps=1024,
     )
 

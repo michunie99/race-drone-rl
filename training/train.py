@@ -9,14 +9,14 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNorm
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 import numpy as np
+from multiprocessing import Manager, Value
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
-from src.build_network import DronePolicy
-from envs import RaceAviary
-from envs.enums import ScoreType
+from race_rl.nn import DronePolicy
+from race_rl.env import RaceAviary, DeployType
 
 wandb.login()
     
@@ -32,7 +32,7 @@ def parse_args():
                         help="Number of time steps to run trainign")
     parser.add_argument("--num-valid", type=int, default=10,
                         help="Number of validation enviroments")
-    parser.add_argument("--pb-freq", type=int, default=240,
+    parser.add_argument("--pdb-freq", type=int, default=240,
                         help="Simulator frequency in Hz")
     parser.add_argument("--crt-freq", type=int, default=60,
                         help="Simulator frequency in Hz")
@@ -44,20 +44,24 @@ def parse_args():
                         help="Frequeny of model save")
     parser.add_argument("--num-env", type=int, default=6,
                         help="Number of parallel envirements to")
-    parser.add_argument("--track-path", type=str, default='tracks/single_gate.csv',
+    parser.add_argument("--track-path", type=str, default='assets/tracks/single_gate.csv',
                             help="Path for the track file")
     parser.add_argument("--cpus", type=int, default=1, 
                         help="Number of CPU cores, determines number of vec envs") 
     parser.add_argument("--gate-lookup", type=int, default=2,
                         help="Gate lookup in the observation space")
-    parser.add_argument("--world-box", type=list, default=[5, 5, 3],
+    parser.add_argument("--world-box", type=list, default=[10, 10, 4],
                         help="Size of the world box")
-    parser.add_argument("--field-coef", type=float, default=0.0005,
+    parser.add_argument("--field-coef", type=float, default=0.001,
                         help="Gate filed coefficient in the reward")
-    parser.add_argument("--omega-coef", type=float, default=0.00001,
+    parser.add_argument("--omega-coef", type=float, default=0.0001,
                         help="Angular velocity coefficient in the reward")
-    parser.add_argument("--steps-per-env", type=int, default=512,
+    parser.add_argument("--steps-per-env", type=int, default=180,
                         help="Number of steps in enviroment to update agent")
+    # TODO - check this
+    parser.add_argument("--remove-omega", type=int, default=1_0000,
+                        help="When to decrease omega coefficien to 0")
+    
     
     # PPO parameters
     parser.add_argument("--learning-rate", "-lr", type=float, default=1e-3,
@@ -85,7 +89,7 @@ def parse_args():
     args = parser.parse_args()
     return args
     
-def make_env(args, gui):
+def make_env(args, gui, num, init_segment, start_pos):
     env_builder = lambda: gym.make(
         "race-aviary-v0",
         init_segment=num,
@@ -98,12 +102,12 @@ def make_env(args, gui):
         gui=gui,
         record=False,
         gates_lookup=args.gate_lookup,
-        track_path=TRACK_PATH,
-        gates_lookup=args.gate_lookup,
-        world_box_size=args.world_box,
+        track_path=args.track_path,
+        world_box=args.world_box,
         user_debug_gui=False, 
-        coef_gate_filed=0.001,
-        coef_omega=0.0001,
+        coef_gate_filed=args.field_coef,
+        coef_omega=args.omega_coef,
+        deploy_type=DeployType.TRAINING
     )
     return env_builder
 
@@ -114,7 +118,7 @@ def run(args):
     start_pos = manager.dict()
     init_segment=Value('i', 0)
 
-    envs = [make_env(args.gui, i ,init_segment, start_pos) for i in range(args.cpus)]
+    envs = [make_env(args, args.gui, i ,init_segment, start_pos) for i in range(args.cpus)]
     vec_env = SubprocVecEnv(envs)
 
     # calcualte number of steps per enviroment
@@ -203,7 +207,6 @@ def run(args):
         callback=callbacks,
         tb_log_name=run_id,
     )
-    # TODO Add model save !!!
 
     if args.wb_logging: 
         run.finish()

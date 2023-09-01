@@ -341,8 +341,8 @@ class RaceAviary(BaseAviary):
         crash_reward = 0
         if (len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
                                   physicsClientId=self.CLIENT)) != 0 or 
-            np.any(np.abs(d_pos) > self.world_box) or
-            (not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
+            np.any(np.abs(d_pos) > self.world_box)):
+             #or (not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
 
             crash_reward = -min((dg/wg)**2, 20)
 
@@ -562,6 +562,8 @@ class RaceAviary(BaseAviary):
     def step(self, 
              action
              ):
+
+
         state = self._getDroneStateVector(0)
         pos = state[0:3]
 

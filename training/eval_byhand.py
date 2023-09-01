@@ -87,8 +87,14 @@ def run(args):
 
     model = PPO.load(model_path)
 
-    mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=50)
-    print(f"Mean reward = {mean_reward:.2f} +/- {std_reward:.2f}")
+    obs = env.reset()
+    while True:
+        a = model.predict(obs)
+        obs, reward, done, info = env.step(a)
+        print(info)
+        input()
+        if done:
+            env.reset()
     
 if __name__ == "__main__":
     args = parse_args()
