@@ -9,16 +9,21 @@ import pybullet_data
 import pkg_resources
 from multiprocessing import Process, Value, Manager
 from random import sample
+from enum import Enum
 
 from gym_pybullet_drones.envs.BaseAviary import BaseAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
 from race_rl.race_track import Track
 
+class DeployType(Enum):
+    TRAINING = 0
+    VALIDATION = 1
+
 class RaceAviary(BaseAviary):
+
     """Multi-drone environment class for control applications."""
     ################################################################################
-
     def __init__(self,
                  init_segment,
                  start_dict,
@@ -37,11 +42,11 @@ class RaceAviary(BaseAviary):
                  asset_path='assets',
                  gates_lookup=2,
                  world_box=np.array([10,10,5]),
-                 type="train",
+                 deploy_type=DeployType.TRAINING,
                  seed=42,
-                 coef_gate_filed=0.001,
-                 coef_omega=0.001,
-                 runs_que_len=100,
+                 coef_gate_filed=0.01,
+                 coef_omega=0.0001,
+                 runs_que_len=20,
                  start_que_len=20,
                  acceptance_thr=0.8,
                     ):
@@ -175,8 +180,10 @@ class RaceAviary(BaseAviary):
             asset_path,
             self.CLIENT,
         )
+        self.track.reloadGates()
         self.NUMBER_GATES=len(self.track.segments)
 
+        self.deploy_type=deploy_type
         self.gates_lookup=gates_lookup
         self.world_box=np.array(world_box)
         self.coef_gate_filed=coef_gate_filed
@@ -268,7 +275,6 @@ class RaceAviary(BaseAviary):
                             dtype=np.float64)
     
     ################################################################################
-
     def _computeObs(self):
         """Returns the current observation of the environment. """
         state = self._getDroneStateVector(0)
@@ -285,7 +291,7 @@ class RaceAviary(BaseAviary):
             start_pos=segment.gate.pos
             start_quat=segment.gate.quat
 
-        if len(gate_lookup) < self.gates_lookup:
+        while len(gate_lookup) < self.gates_lookup:
             # When consideting last gate add a virtual gate in front of a current gate
             gate_lookup.append(np.array([2, 0, np.pi/2, 0]))
 
@@ -302,7 +308,6 @@ class RaceAviary(BaseAviary):
         return obs
 
     ################################################################################
-
     def _computeReward(self):
         """Computes the current reward value(s).
 
@@ -318,31 +323,41 @@ class RaceAviary(BaseAviary):
         d_pos, d_quat = state[0:3], state[3:7]
 
         # 1. Add gate reward
-        reward += self.coef_gate_filed * self.env_segment.gate.field_reward(d_pos)
+        gate_reward = self.env_segment.gate.field_reward(d_pos)
+        self.infos["gate_reward"] = gate_reward
+        reward += self.coef_gate_filed * gate_reward
 
         # 2. Progress calculation
         projection = self.env_segment.projectPoint(d_pos)
-        reward += (projection - self.prev_projection) 
+        progress_reward = (projection - self.prev_projection) 
+        self.infos["progress_reward"] = progress_reward
+        reward += progress_reward
         self.prev_projection = projection
 
         # 3. Add the colision penaulty or out of bound penauly
         diff_vec = self.current_segment.gate.pos-d_pos
         dg = np.linalg.norm(diff_vec) # Reward for crash as in paper
         wg=self.current_segment.gate.scale
+        crash_reward = 0
         if (len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
                                   physicsClientId=self.CLIENT)) != 0 or 
-            np.any(np.abs(d_pos) > self.world_box)):
-            reward -= min((dg/wg)**2, 20)
+            np.any(np.abs(d_pos) > self.world_box) or
+            (not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
+
+            crash_reward = -min((dg/wg)**2, 20)
+
+        self.infos["crash_reward"] = crash_reward
+        reward += crash_reward
 
         # 4. Add reguralization on the angular velocity    
         omega = state[13:16]
         omega_norm = np.linalg.norm(omega)**2
+        self.infos["omega_norm"] = omega_norm
         reward -= self.coef_omega * omega_norm
 
         return reward
     
     ################################################################################
-    
     def _computeTerminated(self):
         """Computes the current terminated value(s)."""
         terminated = False
@@ -362,6 +377,7 @@ class RaceAviary(BaseAviary):
         
         state = self._getDroneStateVector(0)
         pos = state[0:3]
+
         # Flew too far
         if np.any(np.abs(pos) > self.world_box):
             truncated = True
@@ -372,7 +388,10 @@ class RaceAviary(BaseAviary):
             truncated = True
 
         # Truncate if segment completed but not scored
-        if not self._gateScored() and self.current_segment.segmentFinished(pos):
+        # TODO - does it works ???
+        if (not self._gateScored() and 
+            self.current_segment.segmentFinished(pos) and
+            self.deploy_type == DeployType.TRAINING):
             truncated = True
 
         self.infos["TimeLimit.truncated"] = truncated
@@ -448,13 +467,13 @@ class RaceAviary(BaseAviary):
         self.ang_v = state[13:16].reshape(1, 3)
         if self.PHYSICS == Physics.DYN:
             self.rpy_rates = np.zeros((self.NUM_DRONES, 3))
+
         #### Set PyBullet's parameters #############################
         p.setGravity(0, 0, -self.G, physicsClientId=self.CLIENT)
         p.setRealTimeSimulation(0, physicsClientId=self.CLIENT)
         p.setTimeStep(self.PYB_TIMESTEP, physicsClientId=self.CLIENT)
         p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=self.CLIENT)
         #### Load ground plane, drone and obstacles models #########
-        #self.PLANE_ID = p.loadURDF("plane.urdf", physicsClientId=self.CLIENT)
 
         self.DRONE_IDS = np.array([p.loadURDF(pkg_resources.resource_filename('gym_pybullet_drones', 'assets/'+self.URDF),
                                               self.pos[i,:],
@@ -462,6 +481,7 @@ class RaceAviary(BaseAviary):
                                               flags = p.URDF_USE_INERTIA_FROM_FILE,
                                               physicsClientId=self.CLIENT
                                               ) for i in range(self.NUM_DRONES)])
+
         #### Remove default damping #################################
         # for i in range(self.NUM_DRONES):
         #     p.changeDynamics(self.DRONE_IDS[i], -1, linearDamping=0, angularDamping=0)
@@ -519,7 +539,6 @@ class RaceAviary(BaseAviary):
         return self._normalizedActionToRPM(action)
 
     ################################################################################
-
     def _normalizedActionToRPM(self,
                                action
                                ):
@@ -545,17 +564,19 @@ class RaceAviary(BaseAviary):
              ):
         state = self._getDroneStateVector(0)
         pos = state[0:3]
+
         if self.curr_segment_idx == self.start_segment_idx:
-            if self._gateScored() and self.current_segment.segmentFinished(pos):
-                self.runs.append(True)
+            if self.current_segment.segmentFinished(pos):
+                self.runs.append(self._gateScored())
                 if sum(list(self.runs)) / self.runs_que_len > self.acceptance_thr:
                     start_state = self.start_dict.get(self.start_segment_idx+1, deque(maxlen=self.start_que_len))
-                    star_state.append(state)
+                    start_state.append(state)
                     self.start_dict[self.start_segment_idx+1] = start_state
-                self.curr_segment_idx += 1
-                self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
-            else:
-                self.runs.append(False)
 
+
+        if ((self._gateScored() or self.deploy_type == DeployType.VALIDATION) and 
+        self.current_segment.segmentFinished(pos)):
+            self.curr_segment_idx += 1
+            self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
 
         return super().step(action)
