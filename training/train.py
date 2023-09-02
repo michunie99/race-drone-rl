@@ -5,7 +5,15 @@ import pickle
 from pathlib import Path
 
 import gymnasium as gym
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecMonitor
+from stable_baselines3.common.vec_env import (
+    DummyVecEnv,
+    SubprocVecEnv,
+    VecNormalize,
+    VecMonitor,
+    VecFrameStack
+)
+
+
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 import numpy as np
