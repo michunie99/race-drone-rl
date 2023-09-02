@@ -42,6 +42,8 @@ class Gate:
                                      orientation=self.quat)
 
         dp, dn = t_pos[0], np.sqrt(t_pos[1]**2 + t_pos[2]**2)
+        # Normalize dn
+        dn /= self.scale
         # TODO - check the cooeficent of 1.5
         f = lambda x: max(1-x/1.5, 0.0)
         v = lambda x, y: max((1- y) * (x/6.0), 0.05)

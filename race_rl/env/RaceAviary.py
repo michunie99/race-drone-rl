@@ -582,3 +582,6 @@ class RaceAviary(BaseAviary):
             self.current_segment=self.track.segments[self.curr_segment_idx%self.NUMBER_GATES]
 
         return super().step(action)
+
+    def changeOmegaCoef(self, coef_omega: float):
+        self.coef_omega=coef_omega

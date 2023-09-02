@@ -4,8 +4,15 @@ import pickle
 from pathlib import Path
 
 import gymnasium as gym
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecMonitor
-from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import (
+    DummyVecEnv,
+    SubprocVecEnv,
+    VecNormalize,
+    VecMonitor,
+    VecFrameStack
+)
+
+from stable_baselines3 import PPO, A2C
 from stable_baselines3.common.callbacks import CheckpointCallback
 import numpy as np
 from multiprocessing import Manager, Value
@@ -15,11 +22,13 @@ from wandb.integration.sb3 import WandbCallback
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 #from src.build_network import DronePolicy
-from race_rl.env import RaceAviary, DeployType
+from race_rl.env import RaceAviary, DeployType, DecreaseOmegaCoef
 
 TRACK_PATH="assets/tracks/single_gate.csv"
 
 def make_env(gui, num, init_segment, start_pos):
+    if num == 0:
+        gui = True
     env_builder = lambda: gym.make(
         "race-aviary-v0",
         init_segment=num,
@@ -34,7 +43,7 @@ def make_env(gui, num, init_segment, start_pos):
         gates_lookup=2,
         track_path=TRACK_PATH,
         user_debug_gui=False, 
-        coef_gate_filed=0.001,
+        coef_gate_filed=0.01,
         coef_omega=0.0001,
     )
     return env_builder
@@ -62,6 +71,12 @@ def run():
         filename="logs"
     ) 
 
+    # Add to add the accelerationi (but storing 2 speeds)
+    vec_env = VecFrameStack(
+        vec_env,
+        2
+    )
+
     # Set up wdb
     curr_time = time.gmtime()
     run_id = f'{time.strftime("%d_%m_%y_%H_%M", curr_time)}_race_exp'
@@ -80,6 +95,8 @@ def run():
             save_replay_buffer=True,
             save_vecnormalize=True,
     ))
+
+    callbacks.append(DecreaseOmegaCoef(500_000, 0))
     
     model = PPO(
         #DronePolicy,
@@ -89,9 +106,11 @@ def run():
         gamma=0.95,
         seed=42,
         verbose=1,
+        batch_size=6*1024,
+
         tensorboard_log="./logs/tensor_board/", 
-        n_steps=180*6,
-        #n_steps=1024,
+        #n_steps=240,
+        n_steps=1024,
     )
 
     model.learn(

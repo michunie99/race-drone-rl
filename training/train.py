@@ -16,7 +16,7 @@ from wandb.integration.sb3 import WandbCallback
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 from race_rl.nn import DronePolicy
-from race_rl.env import RaceAviary, DeployType
+from race_rl.env import RaceAviary, DeployType, DecreaseOmegaCoef
 
 wandb.login()
     
@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument("--steps-per-env", type=int, default=180,
                         help="Number of steps in enviroment to update agent")
     # TODO - check this
-    parser.add_argument("--remove-omega", type=int, default=1_0000,
+    parser.add_argument("--remove-omega", type=int, default=500_000,
                         help="When to decrease omega coefficien to 0")
     
     
@@ -122,8 +122,6 @@ def run(args):
     vec_env = SubprocVecEnv(envs)
 
     # calcualte number of steps per enviroment
-    env_steps = args.steps_per_env * args.cpus
-
     if args.model_dir and args.run_number:
         model_dir = Path(args.model_dir)
         model_path = model_dir / f"{model_dir.stem}_race_model_{args.run_number}_steps.zip"
@@ -147,6 +145,12 @@ def run(args):
         vec_env,
         filename=args.logs_dir
     ) 
+    
+    # Add to add the accelerationi (but storing 2 speeds)
+    vec_env = VecFrameStack(
+        vec_env,
+        2
+    )
 
     # Set up wdb
     curr_time = time.gmtime()
@@ -184,6 +188,8 @@ def run(args):
             save_replay_buffer=True,
             save_vecnormalize=True,
     ))
+
+    callbacks.append(DecreaseOmegaCoef(args.remove_omega, 0))
     
     if not args.model_dir:
         model = PPO(
@@ -192,7 +198,8 @@ def run(args):
             learning_rate=args.learning_rate,
             gamma=args.gamma,
             seed=args.seed,
-            n_steps=env_steps,
+            n_steps=env_steps*args.cpus,
+            batch_size=env_steps,
             verbose=1,
             tensorboard_log="./logs/tensor_board/", #TODO - run id
         )

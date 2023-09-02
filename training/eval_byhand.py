@@ -71,6 +71,7 @@ def run(args):
     args_path = model_dir / "args.pkl"
     env_args = load_experiment(args_path)
 
+    env_args.track_path = args.track_path
     manager = Manager()
     start_pos = manager.dict()
     # Create enviroments
