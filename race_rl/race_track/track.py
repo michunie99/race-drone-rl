@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import pybullet as p
 import numpy as np
@@ -50,6 +50,12 @@ class Track:
             pos=gate.pos
             segments.append(segment)
         return segments
+
+    def getTrackStart(self) -> Tuple[np.array]:
+        start_data=self.track_data[0]
+        pos=np.array([start_data[0],start_data[1],start_data[2]]).astype(np.float64)
+        quat=np.array([start_data[4],start_data[5],start_data[6],start_data[7]]).astype(np.float64)
+        return pos, quat
 
     def reloadGates(self):
         # Reload gate to the enviroment aster bullet reset

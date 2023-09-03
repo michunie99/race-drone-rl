@@ -5,7 +5,7 @@ import pickle
 from pathlib import Path
 
 import gymnasium as gym
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecMonitor, VecFrameStack
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_util import make_vec_env
@@ -47,16 +47,16 @@ def make_env(args, gui, start_pos):
         env_kwargs={
             "init_segment":0,
             "start_dict":start_pos,
-            "pyb_freq":args.pdb_freq,
-            "ctrl_freq":args.crt_freq,
-            "coef_gate_filed":args.field_coef,
-            "coef_omega":args.omega_coef,
+            "pyb_freq":240,
+            "ctrl_freq":60,
+            "coef_gate_filed":0.1,
+            "coef_omega":0.1,
             "drone_model":DroneModel('cf2x'),
             "physics":Physics('pyb'),
             "gui":gui,
             "record":False,
-            "gates_lookup":args.gate_lookup,
-            "world_box":args.world_box,
+            "gates_lookup":2,
+            "world_box":[10,10,4],
             "track_path":args.track_path,
             "user_debug_gui":False, 
             "deploy_type":DeployType.TRAINING
@@ -69,8 +69,9 @@ def run(args):
     model_path = model_dir / f"{model_dir.stem}_race_model_{args.run_number}_steps.zip"
     norm_path = model_dir / f"{model_dir.stem}_race_model_vecnormalize_{args.run_number}_steps.pkl"
     args_path = model_dir / "args.pkl"
-    env_args = load_experiment(args_path)
+    #env_args = load_experiment(args_path)
 
+    env_args = args
     env_args.track_path = args.track_path
     manager = Manager()
     start_pos = manager.dict()
@@ -81,6 +82,11 @@ def run(args):
     env = VecNormalize.load(
             norm_path,
             env,
+    )
+
+    env = VecFrameStack(
+        env,
+        2
     )
 
     env.training = False

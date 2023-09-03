@@ -5,7 +5,7 @@ import pybullet as p
 
 drone_asset="/home/michunie/projects/magisterka/agh-drone-racing/gym-pybullet-drones/gym_pybullet_drones/assets/cf2x.urdf"
 assets_path="assets"
-track_path="assets/tracks/circle_track.csv"
+track_path="assets/tracks/thesis-tracks/straight_track.csv"
 
 def main():
     # Create bullet client

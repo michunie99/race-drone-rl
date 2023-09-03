@@ -127,7 +127,8 @@ def run(args):
     init_segment=Value('i', 0)
 
     envs = [make_env(args, args.gui, i ,init_segment, start_pos) for i in range(args.cpus)]
-    vec_env = SubprocVecEnv(envs)
+    #vec_env = SubprocVecEnv(envs)
+    vec_env = DummyVecEnv(envs)
 
     # calcualte number of steps per enviroment
     if args.model_dir and args.run_number:
@@ -206,8 +207,8 @@ def run(args):
             learning_rate=args.learning_rate,
             gamma=args.gamma,
             seed=args.seed,
-            n_steps=env_steps*args.cpus,
-            batch_size=env_steps,
+            n_steps=args.steps_per_env*args.cpus,
+            batch_size=args.steps_per_env,
             verbose=1,
             tensorboard_log="./logs/tensor_board/", #TODO - run id
         )

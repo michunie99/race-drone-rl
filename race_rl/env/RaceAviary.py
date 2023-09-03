@@ -200,7 +200,10 @@ class RaceAviary(BaseAviary):
         # Queue with last 100 runs successes
         self.runs=deque(maxlen=runs_que_len)
         self.runs_que_len=runs_que_len
-        start_pos, start_quat=self.env_segment.startPosition()
+        if self.start_segment_idx == 0:
+            start_pos, start_quat=self.track.getTrackStart()
+        else:
+            start_pos, start_quat=self.env_segment.startPosition()
         self.prev_projection=self.env_segment.projectPoint(start_pos)
         # TODO - check if the 20 last sucessuf runs is enougth
         rpy=p.getEulerFromQuaternion(start_quat)
@@ -474,6 +477,7 @@ class RaceAviary(BaseAviary):
         p.setTimeStep(self.PYB_TIMESTEP, physicsClientId=self.CLIENT)
         p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=self.CLIENT)
         #### Load ground plane, drone and obstacles models #########
+        self.PLANE_ID = p.loadURDF("plane.urdf", physicsClientId=self.CLIENT)
 
         self.DRONE_IDS = np.array([p.loadURDF(pkg_resources.resource_filename('gym_pybullet_drones', 'assets/'+self.URDF),
                                               self.pos[i,:],
