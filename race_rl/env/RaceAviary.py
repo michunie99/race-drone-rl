@@ -326,7 +326,7 @@ class RaceAviary(BaseAviary):
         d_pos, d_quat = state[0:3], state[3:7]
 
         # 1. Add gate reward
-        gate_reward = self.env_segment.gate.field_reward(d_pos)
+        gate_reward = self.current_segment.gate.field_reward(d_pos)
         self.infos["gate_reward"] = gate_reward
         reward += self.coef_gate_filed * gate_reward
 
