@@ -115,7 +115,8 @@ def make_env(args, gui, num, init_segment, start_pos):
         user_debug_gui=False, 
         coef_gate_filed=args.field_coef,
         coef_omega=args.omega_coef,
-        deploy_type=DeployType.TRAINING
+        deploy_type=DeployType.TRAINING,
+        max_distance_segmnet=args.max_distance_segmnet,
     )
     return env_builder
 

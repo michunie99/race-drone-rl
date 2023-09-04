@@ -45,3 +45,12 @@ class Segment:
             orientation=self.gate.quat,
         )
         return t_pos[0] > 0
+
+    def distanceToSegment(self, d_pos: np.array) -> float:
+        # Equations as in https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+        p = d_pos
+        a = self.start_pos
+        n = self.segment/self.norm_segment
+
+        distance = np.linalg.norm((p-a) - np.dot((p-a), n)*n)
+        return distance

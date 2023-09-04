@@ -49,6 +49,7 @@ class RaceAviary(BaseAviary):
                  runs_que_len=20,
                  start_que_len=20,
                  acceptance_thr=0.8,
+                 max_distance_segmnet=2
                     ):
 
         #### Constants #############################################
@@ -189,6 +190,7 @@ class RaceAviary(BaseAviary):
         self.coef_gate_filed=coef_gate_filed
         self.coef_omega=coef_omega
         self.infos={}
+        self.max_distance_segmnet=max_distance_segmnet
         self.start_segment_idx=init_segment%self.NUMBER_GATES
         # with init_segment.get_lock():
         #     init_segment.value += 1
@@ -384,6 +386,10 @@ class RaceAviary(BaseAviary):
         # Flew too far
         if np.any(np.abs(pos) > self.world_box):
             truncated = True
+
+        if self.max_distance_segmnet <= self.current_segment.distanceToSegment(pos):
+            truncated = True
+        print("Distance to segmen:" ,self.current_segment.distanceToSegment(pos), pos)
         
         # Termiante when detected collision
         if len(p.getContactPoints(bodyA=self.DRONE_IDS[0],

@@ -98,7 +98,7 @@ def run():
             save_vecnormalize=True,
     ))
 
-    callbacks.append(DecreaseOmegaCoef(1_000_000, 0))
+    callbacks.append(DecreaseOmegaCoef(10_000_000, 0))
     
     #model = PPO(
         ##DronePolicy,
@@ -118,15 +118,15 @@ def run():
     model = A2C(
         "MlpPolicy",
         vec_env,
-        gamma=0.95,
+        gamma=0.97,
         verbose=1,
         seed=42,
         tensorboard_log="./logs/tensor_board/", 
-        n_steps=120
+        n_steps=180
     )
 
     model.learn(
-        total_timesteps=10_000_000,
+        total_timesteps=50_000_000,
         callback=callbacks,
         tb_log_name=run_id,
     )
