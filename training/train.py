@@ -69,6 +69,8 @@ def parse_args():
     # TODO - check this
     parser.add_argument("--remove-omega", type=int, default=500_000,
                         help="When to decrease omega coefficien to 0")
+    parser.add_argument("--max-distance-segmnet", type=float, default=2.0,
+                        help="Distance to the path to terminate")
     
     
     # PPO parameters
