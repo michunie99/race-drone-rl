@@ -346,7 +346,8 @@ class RaceAviary(BaseAviary):
         crash_reward = 0
         if (len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
                                   physicsClientId=self.CLIENT)) != 0 or 
-            np.any(np.abs(d_pos) > self.world_box)):
+            np.any(np.abs(d_pos) > self.world_box) or
+             self.max_distance_segmnet <= self.current_segment.distanceToSegment(d_pos)):
              #or (not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
 
             crash_reward = -min((dg/wg)**2, 20)
