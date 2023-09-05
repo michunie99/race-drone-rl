@@ -173,7 +173,7 @@ class RaceAviary(BaseAviary):
                                                             farVal=1000.0
                                                             )
         #### Set initial poses #####################################
-        self.seed=seed
+        self.seed=seed+init_segment
         np.random.seed(self.seed)
         # Create track object
         self.track=Track(
@@ -206,6 +206,9 @@ class RaceAviary(BaseAviary):
             start_pos, start_quat=self.track.getTrackStart()
         else:
             start_pos, start_quat=self.env_segment.startPosition()
+
+        offset = np.random.uniform(-0.01, 0.01, size=(3,))
+        start_pos += offset
         self.prev_projection=self.env_segment.projectPoint(start_pos)
         # TODO - check if the 20 last sucessuf runs is enougth
         rpy=p.getEulerFromQuaternion(start_quat)
@@ -390,7 +393,6 @@ class RaceAviary(BaseAviary):
 
         if self.max_distance_segmnet <= self.current_segment.distanceToSegment(pos):
             truncated = True
-        print("Distance to segmen:" ,self.current_segment.distanceToSegment(pos), pos)
         
         # Termiante when detected collision
         if len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
