@@ -58,7 +58,7 @@ def parse_args():
                         help="Number of CPU cores, determines number of vec envs") 
     parser.add_argument("--gate-lookup", type=int, default=2,
                         help="Gate lookup in the observation space")
-    parser.add_argument("--world-box", type=list, default=[10, 10, 4],
+    parser.add_argument("--world-box", type=list, default=[100, 100, 4],
                         help="Size of the world box")
     parser.add_argument("--field-coef", type=float, default=0.001,
                         help="Gate filed coefficient in the reward")
@@ -69,7 +69,7 @@ def parse_args():
     # TODO - check this
     parser.add_argument("--remove-omega", type=int, default=500_000,
                         help="When to decrease omega coefficien to 0")
-    parser.add_argument("--max-distance-segmnet", type=float, default=2.0,
+    parser.add_argument("--max-distance-segmnet", type=float, default=5.0,
                         help="Distance to the path to terminate")
     
     
