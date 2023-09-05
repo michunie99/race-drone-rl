@@ -207,7 +207,7 @@ class RaceAviary(BaseAviary):
         else:
             start_pos, start_quat=self.env_segment.startPosition()
 
-        offset = np.random.uniform(-0.01, 0.01, size=(3,))
+        offset = np.random.uniform(-0.1, 0.1, size=(3,))
         start_pos += offset
         self.prev_projection=self.env_segment.projectPoint(start_pos)
         # TODO - check if the 20 last sucessuf runs is enougth
