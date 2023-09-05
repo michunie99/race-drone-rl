@@ -67,10 +67,12 @@ def parse_args():
     parser.add_argument("--steps-per-env", type=int, default=180,
                         help="Number of steps in enviroment to update agent")
     # TODO - check this
-    parser.add_argument("--remove-omega", type=int, default=500_000,
+    parser.add_argument("--remove-omega", type=int, default=1_000_000,
                         help="When to decrease omega coefficien to 0")
-    parser.add_argument("--max-distance-segmnet", type=float, default=2.0,
+    parser.add_argument("--max-distance-segmnet", type=float, default=10.0,
                         help="Distance to the path to terminate")
+    parser.add_argument("--normalization-pkl", type=str, default=None,
+                        help="Path to noramlziation")
     
     
     # PPO parameters
@@ -129,7 +131,16 @@ def run(args):
     start_pos = manager.dict()
     init_segment=Value('i', 0)
 
+    if args.normalization_pkl:
+        with open(args.normalization_pkl, "rb") as f:
+            normalization=pickle.load(f)
+    else:
+        normalization=None
+
+
     envs = [make_env(args, args.gui, i ,init_segment, start_pos) for i in range(args.cpus)]
+    # Read normalziation
+
     #vec_env = SubprocVecEnv(envs)
     vec_env = DummyVecEnv(envs)
 

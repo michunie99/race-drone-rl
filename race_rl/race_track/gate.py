@@ -43,11 +43,11 @@ class Gate:
 
         dp, dn = t_pos[0], np.sqrt(t_pos[1]**2 + t_pos[2]**2)
         # Normalize dn
-        dn /= self.scale
+
         # TODO - check the cooeficent of 1.5
-        f = lambda x: max(1-x/1.5, 0.0)
-        v = lambda x, y: max((1- y) * (x/6.0), 0.05)
-        filed_reward = -f(dp)**2 * (1 - np.exp(- 0.5 * dn**2 / v(1.0, f(dp))))
+        f = lambda x: max(1-x/3, 0.0)
+        v = lambda x, y: max((1- y) * (x/6.0), 0.05) 
+        filed_reward = -f(dp)**2 * (1 - np.exp(-0.5 * dn**2 / v(1.0, f(dp))))
         return filed_reward
     
     

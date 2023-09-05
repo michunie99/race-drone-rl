@@ -10,6 +10,7 @@ import pkg_resources
 from multiprocessing import Process, Value, Manager
 from random import sample
 from enum import Enum
+import pickle
 
 from gym_pybullet_drones.envs.BaseAviary import BaseAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
@@ -38,7 +39,7 @@ class RaceAviary(BaseAviary):
                  obstacles=False,
                  user_debug_gui=True,
                  output_folder='results',
-                 track_path='assets/tracks/circle_track.csv',
+                 track_path='assets/tracks/single_gate.csv',
                  asset_path='assets',
                  gates_lookup=2,
                  world_box=np.array([10,10,5]),
@@ -49,7 +50,7 @@ class RaceAviary(BaseAviary):
                  runs_que_len=20,
                  start_que_len=20,
                  acceptance_thr=0.8,
-                 max_distance_segmnet=2
+                 max_distance_segmnet=5,
                     ):
 
         #### Constants #############################################
@@ -174,7 +175,7 @@ class RaceAviary(BaseAviary):
                                                             )
         #### Set initial poses #####################################
         self.seed=seed
-        np.random.seed(self.seed)
+        np.random.seed(self.seed+init_segment)
         # Create track object
         self.track=Track(
             track_path, 
@@ -206,6 +207,9 @@ class RaceAviary(BaseAviary):
             start_pos, start_quat=self.track.getTrackStart()
         else:
             start_pos, start_quat=self.env_segment.startPosition()
+        # Add randomization to start position
+        offset = np.random.uniform(low=-0.01, high=0.01, size=(3,))
+        start_pos += offset
         self.prev_projection=self.env_segment.projectPoint(start_pos)
         # TODO - check if the 20 last sucessuf runs is enougth
         rpy=p.getEulerFromQuaternion(start_quat)
@@ -347,8 +351,8 @@ class RaceAviary(BaseAviary):
         if (len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
                                   physicsClientId=self.CLIENT)) != 0 or 
             np.any(np.abs(d_pos) > self.world_box) or
-             self.max_distance_segmnet <= self.current_segment.distanceToSegment(d_pos)):
-             #or (not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
+            self.max_distance_segmnet <= self.current_segment.distanceToSegment(d_pos)):# or
+            #(not self._gateScored() and self.current_segment.segmentFinished(d_pos))):
 
             crash_reward = -min((dg/wg)**2, 20)
 
@@ -390,7 +394,6 @@ class RaceAviary(BaseAviary):
 
         if self.max_distance_segmnet <= self.current_segment.distanceToSegment(pos):
             truncated = True
-        print("Distance to segmen:" ,self.current_segment.distanceToSegment(pos), pos)
         
         # Termiante when detected collision
         if len(p.getContactPoints(bodyA=self.DRONE_IDS[0],
