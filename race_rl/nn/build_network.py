@@ -24,15 +24,15 @@ class DroneNetwork(nn.Module):
 
             # Policy network
             self.policy_net = nn.Sequential(
-                init_layer(nn.Linear(feature_dim, 128)), nn.Tanh(),
-                init_layer(nn.Linear(128, 128)), nn.Tanh(),
+                init_layer(nn.Linear(feature_dim, 128)), nn.ReLU(),
+                init_layer(nn.Linear(128, 128)), nn.ReLU(),
                 init_layer(nn.Linear(128, last_layer_dim_pi)), nn.Tanh()
             )
              
             # Value network
             self.value_net = nn.Sequential(
-                init_layer(nn.Linear(feature_dim, 128)), nn.Tanh(),
-                init_layer(nn.Linear(128, 128)), nn.Tanh(),
+                init_layer(nn.Linear(feature_dim, 128)), nn.ReLU(),
+                init_layer(nn.Linear(128, 128)), nn.ReLU(),
                 init_layer(nn.Linear(128, last_layer_dim_vf)), nn.Tanh()
             )
 
