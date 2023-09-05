@@ -149,6 +149,7 @@ def run(args):
             vec_env,
             norm_obs=args.norm_obs,
             norm_reward=args.norm_reward,
+            clip_obs=25.0
             # TODO - add clipping in config
         )
 
