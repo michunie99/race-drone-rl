@@ -12,8 +12,8 @@ class Track:
     def __init__(
            self,
            track_path: Union[Path, str],
-           asset_path: Union[Path, str],
-           clientID: int,
+           asset_path: Union[Path, str, None]=None,
+           clientID: Union[int, None]=None,
            ):
         self.asset_path=Path(asset_path)
         self.track_data=readCSV(track_path)

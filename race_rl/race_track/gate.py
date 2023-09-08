@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Union
 
 import pybullet as p
 import numpy as np
@@ -11,15 +11,16 @@ class Gate:
             quat: np.array,
             scale: float,
             asset: Path,
-            clientID: int,
+            clientID: Union[int, None],
             ):
         # Save position and calculate normal
         self.pos=pos
         self.quat=quat
         self.scale=scale
         # Load asset to pybullet client
-        self.load_bullet=self.loadBullet(asset, clientID)
-        self.load_bullet()
+        if not (clientID is None): 
+            self.load_bullet=self.loadBullet(asset, clientID)
+            self.load_bullet()
 
     def loadBullet(self, asset: Path, clientID: int) -> Callable:
         # import pdb; pdb.set_trace()

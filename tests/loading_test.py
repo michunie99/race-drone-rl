@@ -10,7 +10,7 @@ def test(track_path, assets_path):
     print("Set point")
 
 if __name__ == "__main__":
-    track_path="assets/tracks/thesis-tracks/straight_track.csv"
+    track_path="assets/tracks/thesis-tracks/long_trakc.csv"
     assets_path="assets"
     test(track_path, assets_path)
     input()
