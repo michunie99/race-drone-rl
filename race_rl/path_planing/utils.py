@@ -13,7 +13,9 @@ def convert_for_planer(track_path: Path):
     T = [track.getTrackStart()]
     for gate in track.gates:
         T.append((gate.pos, gate.quat))
-    
+
+    T.append(track.getEndPoint()) 
+
     return T
 
 def visualize_points(T):
@@ -42,3 +44,4 @@ def visualize_points(T):
 if __name__ == "__main__":
     T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
     visualize_points(T)
+    plt.show()

@@ -57,6 +57,18 @@ class Track:
         quat=np.array([start_data[3],start_data[4],start_data[5],start_data[6]]).astype(np.float64)
         return pos, quat
 
+    def getEndPoint(self) -> Tuple[np.array]:
+        """
+        Append end point 2 meters behind last gate for the geometric planer
+        """
+        last_gate=self.gates[-1]
+        pos, quat = last_gate.pos, last_gate.quat
+        diff=[-2, 0, 0] # Vector of 2 meters in x direcion
+        d_pos, _ = p.invertTransform(diff, quat)
+        e_pos = pos + np.array(d_pos) 
+        return e_pos, quat
+
+
     def reloadGates(self):
         # Reload gate to the enviroment aster bullet reset
         for gate in self.gates:
