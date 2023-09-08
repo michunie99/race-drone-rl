@@ -41,6 +41,19 @@ def visualize_points(T):
 
     return fig, ax
 
+def check_if_trajectory_valid(planer, max_acc, dt):
+    # Generate waypoints from track
+    tracjetory = []
+    for time in np.arange(0, planer.TS[-1], step=dt):
+        state = planer.getStateAtTime(time)
+        tracjetory.append(state)
+
+    for p in tracjetory:
+        acc_norm = np.linalg.norm(p.acc)
+        if acc_norm > max_acc:
+            return False
+    return True
+
 if __name__ == "__main__":
     T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
     visualize_points(T)

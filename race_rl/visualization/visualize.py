@@ -82,7 +82,11 @@ class TrackVis:
             data.append([*pos, np.linalg.norm(vel)])
 
         x_coords, y_coords, z_coords, vel_norm = zip(*data)
-        self.ax.scatter(x_coords, y_coords, z_coords, c=vel_norm, marker='.')
+        p = self.ax.scatter(x_coords, y_coords, z_coords, c=vel_norm, marker='.')
+        cbar = self.fig.colorbar(p, shrink=0.25, aspect=10, fraction=.1,pad=.05)
+        cbar.set_label('Speed [m/s]',size=10)
+        # access to cbar tick labels:
+        cbar.ax.tick_params(labelsize=10) 
 
 
     def show(self):
@@ -90,14 +94,44 @@ class TrackVis:
         plt.show()
 
 if __name__ == "__main__":
-    from race_rl.path_planing import PathPlanner
-    track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
-    T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
+    from race_rl.path_planing import PathPlanner, check_if_trajectory_valid
+    from tqdm import tqdm
+
+    # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
+    track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
+    T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
+    # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
     points = np.array(list(map(lambda x: x[0], T)))
 
     print("Calculating")
-    pp = PathPlanner(points, max_velocity=10, kt=100)
-    print("Finished")
+    max_acc = (2.25 * 9.81) * 0.8
+
+    # Get optimat kt using bisecion method
+
+    lower_bound = 0
+    upper_bound = 10000000
+    epsilon = 100
+
+    # Max iteration 10
+    max_iterations = 50
+    for iteration in tqdm(range(max_iterations)):
+        mid = (lower_bound + upper_bound) / 2.0
+        pp = PathPlanner(points, max_velocity=8, kt=mid)
+
+        if check_if_trajectory_valid(pp, max_acc, 1/60):
+            lower_bound = mid
+        else:
+            upper_bound = mid
+
+        if abs(upper_bound - lower_bound) < epsilon:
+            break
+
+    mid = (lower_bound + upper_bound) / 2.0
+
+    pp = PathPlanner(points, max_velocity=8, kt=mid)
+    print(f"Finished, optimal kt: {mid}")
 
     tracjetory = []
     for time in np.linspace(0.001, pp.TS[-1], 1000):
@@ -108,3 +142,10 @@ if __name__ == "__main__":
 
 
     track.show()
+
+def bisection_method(lower_bound, upper_bound, epsilon=1e-6, max_iterations=100):
+    # Ensure the function values have different signs at the bounds
+    if not (check(lower_bound) and not check(upper_bound)):
+        raise ValueError("Bounds do not bracket a solution")
+
+

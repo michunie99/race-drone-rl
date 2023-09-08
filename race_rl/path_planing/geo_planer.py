@@ -148,7 +148,9 @@ def polyder(t, k = 0, order = 10):
         terms[k:] = coeffs*pows
     return terms
 
-
+def collision_aviodance(self,):
+    # TODO - add colision with gate deterion
+    pass
 
 if __name__ == "__main__":
     from utils import convert_for_planer, visualize_points
