@@ -3,13 +3,23 @@ from numpy import linalg as LA
 from scipy import optimize
 
 from collections import namedtuple
+from tqdm import tqdm
 
-DesiredState = namedtuple('DesiredState', 'pos vel acc jerk yaw yawdot')
+DesiredState = namedtuple('DesiredState', 'pos vel acc jerk quat omega thrust torque')
         
 class PathPlanner():
-    def __init__(self, waypoint: np.array, max_velocity: float, kt = 100):
+    def __init__(
+        self, 
+        waypoint: np.array, 
+        max_velocity: float, 
+        kt = 100,
+        max_thrust: float = 0.59535, 
+        max_torque: np.array =  np.array([0.008356, 0.008356, 0.007479]), 
+    ):
         self.waypoint = waypoint
         self.max_velocity = max_velocity
+        self.max_thrust = max_thrust
+        self.max_torque = max_torque
         self.kt = kt
         # Order of the polynomial between 2 points
         self.order = 10
@@ -17,22 +27,77 @@ class PathPlanner():
         self.len = n
         self.dim = dim
         self.TS = np.zeros(self.len)
-
+        self.heading = waypoint[1] - waypoint[0]
+        self.heading[2] = 0
+        self.quat = quaterion_2_vectors(self.heading, [1, 0, 0])
+        self.prev_omega= np.array([0, 0, 0])
         # Optimize track
         self.optimize()
-        self.yaw = 0 
-        self.heading = np.zeros(2)
+
+
+    def callback(self, scale):
+        time_scale = intermediate_result['x']
+        scaled_T = self.T * time_scale
+        self.TS[1:] = np.cumsum(scaled_T)
+        self.cost, self.coef = self.minSnapTrajectory(scaled_T)
+
+        traj = self.getTrajectory(0.01)
+
+        if not self.isTracjetoryValid(traj):
+            raise StopIteration
+        else:
+            self.scale = time_scale
 
     def optimize(self):
         relative = self.waypoint[0:-1] - self.waypoint[1:]
         T_init = LA.norm(relative, axis=-1) / self.max_velocity
 
-        # Why like this  ????
-        T = optimize.minimize(self.getCost, T_init, method="COBYLA", constraints= ({'type': 'ineq', 'fun': lambda T: T-T_init}))['x']
-        self.TS[1:] = np.cumsum(T)
-        self.cost, self.coef = self.minSnapTrajectory(T)
+        # Fist optimization, achive optimal time segments allocation
+        T = optimize.minimize(
+            self.getCost, 
+            T_init, 
+            method="COBYLA", 
+            constraints= ({'type': 'ineq', 'fun': lambda T: T-T_init}))['x']
+        # Second optimization chive optimal end time allocation, binary search
+        max_time =  LA.norm(relative, axis=-1) / 0.2
+        self.T = T
+        T_scale = np.max(np.cumsum(max_time) / np.cumsum(T))
+        lower_bound, upper_bound = 0, T_scale
+        epsilon = 0.001
+        # # Ensure the function values have different signs at the bounds
+        max_iterations = 100
+        for iteration in tqdm(range(max_iterations)): 
+            mid = (lower_bound + upper_bound) / 2.0
+            scaled_T = self.T * mid
+            self.TS[1:] = np.cumsum(scaled_T)
+            self.cost, self.coef = self.minSnapTrajectory(scaled_T)
+
+            traj = self.getTrajectory(0.01)
+            if not self.isTracjetoryValid(traj):
+                lower_bound = mid
+            else:
+                upper_bound = mid
+
+            if abs(upper_bound - lower_bound) < epsilon:
+                break
+
+        scale =  (lower_bound + upper_bound) / 2.00
+        # scale = optimize.minimize(
+        #     self.getTime, 
+        #     T_scale,
+        #     method='trust-constr',
+        #     constraints=optimize.LinearConstraint(np.ones(1), lb=0),
+        #     callback=self.callback
+        # )['x']
+        self.scale = scale
+        self.T *= scale
+        self.TS[1:] = np.cumsum(self.T)
+        self.cost, self.coef = self.minSnapTrajectory(self.T)
 
 
+    def getTime(self, scale):
+        return np.cumsum(self.T)[-1] * scale
+        
     def getCost(self, T):
         cost, _ = self.minSnapTrajectory(T)
         cost += self.kt * np.sum(T)
@@ -89,41 +154,99 @@ class PathPlanner():
 
         return A,B
 
-    def getStateAtTime(self, t):
-        if t >= self.TS[-1]: t = self.TS[-1] - 0.001
+    def getTrajectory(self, dt):
+        """
+        Default drone parementers are:  
+        <mass value="0.027"/>
+        <inertia ixx="1.4e-5" ixy="0.0" ixz="0.0" iyy="1.4e-5" iyz="0.0" izz="2.17e-5"/>
+        """
+        # Iterate the entire tracjetory and generate states allong the path        
+        mass = 0.027
+        J = np.array(
+            [  
+                [1.4e-5,     0,          0],
+                [0,          1.4e-5,     0],
+                [0,          0,          2.17e-5]
+            ]
+        )
 
-        i = np.where(t >= self.TS)[0][-1]
+        trajectory = []
+        previous_quat = quaterion_2_vectors([1, 0, 0], self.heading)
+        prev_omega = np.array([0, 0, 0])
 
-        t = t - self.TS[i]
-        coeff = (self.coef.T)[:,self.order*i:self.order*(i+1)]
+        # TODO - should be from dt ???
+        for t in np.arange(0, self.TS[-1], dt):
+            if t >= self.TS[-1]: t = self.TS[-1] - 0.001
+            i = np.where(t >= self.TS)[0][-1]
 
-        pos  = coeff@polyder(t)
-        vel  = coeff@polyder(t,1)
-        accl = coeff@polyder(t,2)
-        jerk = coeff@polyder(t,3)
+            t = t - self.TS[i]
+            coeff = (self.coef.T)[:,self.order*i:self.order*(i+1)]
 
-        #set yaw in the direction of velocity
-        yaw, yawdot = self.getYaw(vel[:2])
+            pos  = coeff@polyder(t)
+            vel  = coeff@polyder(t,1)
+            accl = coeff@polyder(t,2)
+            jerk = coeff@polyder(t,3)
 
-        return DesiredState(pos, vel, accl, jerk, yaw, yawdot)
+            # Add gravityu to the acceleration
+            g = [0, 0, 9.81]
+            accl += g
 
+            normalized_accl = accl / LA.norm(accl)
+            # Calculate a desired quaterion
+            #heading = vel / LA.norm(vel)
+            heading = np.array([1, 0 ,0])
+            projection = heading - np.dot(heading, normalized_accl) * normalized_accl
+            # quat_xyz = np.cross(init_ort, projection)
+            # quat_w = np.sqrt((LA.norm(init_ort) ** 2) * (LA.norm(projection ** 2))) + np.dot(init_ort, projection)
+            # quat = np.array([*quat_xyz, quat_w])
+            # quat /= LA.norm(quat)
+            quat = quaterion_2_vectors([1, 0, 0], projection)
+            prev_heading = heading
 
-    def getYaw(self, vel):
-        curr_heading = vel/LA.norm(vel)
-        prev_heading = self.heading
-        cosine = max(-1,min(np.dot(prev_heading, curr_heading),1))
-        dyaw = np.arccos(cosine)
-        norm_v = np.cross(prev_heading,curr_heading)
-        self.yaw += np.sign(norm_v)*dyaw
+            # Calculater desired omega
+            # TODO - fix to be zero desired heading 
+            omega = angular_velocities(previous_quat, quat, dt)
+            previous_quat = quat
 
-        if self.yaw > np.pi: self.yaw -= 2*np.pi
-        if self.yaw < -np.pi: self.yaw += 2*np.pi
+            # Calculate desired inputs
+            d_omega = (omega - prev_omega) / dt
+            torque = J @ d_omega
+            prev_omega = omega
+            thrus = accl * mass
 
-        self.heading = curr_heading
-        yawdot = max(-30,min(dyaw/0.005,30))
-        return self.yaw,yawdot
+            trajectory.append(DesiredState(pos, vel, accl, jerk, quat, omega, thrus, torque))
 
+        return trajectory
 
+    def isTracjetoryValid(self, trajectory):
+        for state in trajectory:
+            thrust = state.thrust
+            torque = state.torque
+
+            if LA.norm(thrust) > self.max_thrust or np.any(np.abs(torque) > self.max_torque):
+                return False
+
+        return True
+
+def angular_velocities(q1, q2, dt):
+    return (2 / dt) * np.array([
+        q1[3]*q2[0] - q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1], 
+        q1[3]*q2[1] + q1[0]*q2[2] - q1[1]*q2[3] - q1[2]*q2[0], 
+        q1[3]*q2[2] - q1[0]*q2[1] + q1[1]*q2[0] - q1[2]*q2[3]]
+    )
+
+def quaterion_2_vectors(u: np.array, v: np.array):
+    k_cos_theta = np.dot(u, v);
+    k = np.sqrt(LA.norm(u)**2 * LA.norm(v)**2)
+    
+    if k_cos_theta / k == -1:
+        # 180 degree rotation around any orthogonal vector
+        return np.array([*LA.norm(u), 0])
+
+    quat = np.array([*np.cross(u, v), k_cos_theta + k])
+    quat /= LA.norm(quat)
+    return quat
+ 
 def Hessian(T, order=10, opt=4):
     n = len(T)
     Q = np.zeros((n*order, n*order))
@@ -148,9 +271,7 @@ def polyder(t, k = 0, order = 10):
         terms[k:] = coeffs*pows
     return terms
 
-def collision_aviodance(self,):
-    # TODO - add colision with gate deterion
-    pass
+
 
 if __name__ == "__main__":
     from utils import convert_for_planer, visualize_points
@@ -175,3 +296,12 @@ if __name__ == "__main__":
     ax.scatter(x_coords, y_coords, z_coords, c='g', marker='.')
     plt.show() 
 
+
+            # self.MAX_RPM = np.sqrt((self.THRUST2WEIGHT_RATIO*self.GRAVITY) / (4*self.KF))
+            # self.MAX_THRUST = (4*self.KF*self.MAX_RPM**2)
+            # if self.DRONE_MODEL == DroneModel.CF2X:
+            #     self.MAX_XY_TORQUE = (2*self.L*self.KF*self.MAX_RPM**2)/np.sqrt(2)
+    
+            # self.MAX_Z_TORQUE = (2*self.KM*self.MAX_RPM**2)
+            #             forces = np.array(rpm**2)*self.KF
+            # torques = np.array(rpm**2)*self.KM

@@ -76,13 +76,17 @@ class TrackVis:
             
     def visualize_trajectory(self, trajectory):
         data = []
+        additional = []
         for point in trajectory:
             pos = point.pos
             vel = point.vel
             data.append([*pos, np.linalg.norm(vel)])
+            additional.append([[pos[0], pos[0] + vel[0]], [pos[1], pos[1] + vel[1]], [pos[2], pos[2] + vel[2]]])
 
         x_coords, y_coords, z_coords, vel_norm = zip(*data)
         p = self.ax.scatter(x_coords, y_coords, z_coords, c=vel_norm, marker='.')
+        # for a, v_norm in zip(additional, vel_norm):
+        #     vel = self.ax.plot(a[0], a[1], a[2], c='r')
         cbar = self.fig.colorbar(p, shrink=0.25, aspect=10, fraction=.1,pad=.05)
         cbar.set_label('Speed [m/s]',size=10)
         # access to cbar tick labels:
@@ -97,55 +101,44 @@ if __name__ == "__main__":
     from race_rl.path_planing import PathPlanner, check_if_trajectory_valid
     from tqdm import tqdm
 
-    # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
-    # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
-    track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
-    T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
-    # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
-    # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
+    track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
+    T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
+    # track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
+    # track = TrackVis("assets/tracks/thesis-tracks/straight_track.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
     points = np.array(list(map(lambda x: x[0], T)))
 
     print("Calculating")
-    max_acc = (2.25 * 9.81) * 0.8
-
     # Get optimat kt using bisecion method
 
     lower_bound = 0
-    upper_bound = 10000000
+    upper_bound = 100
     epsilon = 100
 
-    # Max iteration 10
-    max_iterations = 50
-    for iteration in tqdm(range(max_iterations)):
-        mid = (lower_bound + upper_bound) / 2.0
-        pp = PathPlanner(points, max_velocity=8, kt=mid)
 
-        if check_if_trajectory_valid(pp, max_acc, 1/60):
-            lower_bound = mid
-        else:
-            upper_bound = mid
+    pp = PathPlanner(points, max_velocity=8, kt=1000)
+    trajectory = pp.getTrajectory(0.01)
+    print(f"Finished, optimal time: {pp.TS[-1]}")
 
-        if abs(upper_bound - lower_bound) < epsilon:
-            break
-
-    mid = (lower_bound + upper_bound) / 2.0
-
-    pp = PathPlanner(points, max_velocity=8, kt=mid)
-    print(f"Finished, optimal kt: {mid}")
-
-    tracjetory = []
-    for time in np.linspace(0.001, pp.TS[-1], 1000):
-        state = pp.getStateAtTime(time)
-        tracjetory.append(state)
-
-    track.visualize_trajectory(tracjetory)
-
+    track.visualize_trajectory(trajectory)
 
     track.show()
 
-def bisection_method(lower_bound, upper_bound, epsilon=1e-6, max_iterations=100):
-    # Ensure the function values have different signs at the bounds
-    if not (check(lower_bound) and not check(upper_bound)):
-        raise ValueError("Bounds do not bracket a solution")
+    # Plot accuation linits
+    thrust = []
+    torque = []
+    for p in trajectory:
+        thrust.append(np.linalg.norm(p.thrust))
+        torque.append(np.abs(p.torque))
 
+    fig, axs = plt.subplots(2)
+    axs[0].plot(thrust)
+    t_x, t_y, t_z = zip(*torque)
+    axs[1].plot(t_x, label='x')
+    axs[1].plot(t_y, label='y')
+    axs[1].plot(t_z, label='z')
+    plt.legend()
+    print(pp.scale)
 
+    plt.show()
