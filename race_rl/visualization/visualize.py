@@ -103,10 +103,10 @@ if __name__ == "__main__":
 
     # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
     # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
-    # track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
-    # T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
-    track = TrackVis("assets/tracks/thesis-tracks/straight_track.csv")
-    T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
+    track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
+    T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
+    # track = TrackVis("assets/tracks/thesis-tracks/straight_track.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
     points = np.array(list(map(lambda x: x[0], T)))
 
     print("Calculating")
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     epsilon = 100
 
 
-    pp = PathPlanner(points, max_velocity=10, kt=10)
+    pp = PathPlanner(points, max_velocity=20, kt=100)
     trajectory = pp.getTrajectory(0.001)
     print(f"Finished, optimal time: {pp.TS[-1]}")
 

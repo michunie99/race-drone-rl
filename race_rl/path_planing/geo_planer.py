@@ -18,8 +18,8 @@ class PathPlanner():
     ):
         self.waypoint = waypoint
         self.max_velocity = max_velocity
-        self.max_thrust = max_thrust
-        self.max_torque = max_torque
+        self.max_thrust = max_thrust * 0.9
+        self.max_torque = max_torque * 0.9
         self.kt = kt
         # Order of the polynomial between 2 points
         self.order = 10
@@ -172,7 +172,8 @@ class PathPlanner():
         )
 
         trajectory = []
-        previous_quat = quaterion_2_vectors([1, 0, 0], self.heading)
+        previous_quat = quaterion_2_vectors(self.heading, [1, 0, 0])
+        previous_quat = np.array([previous_quat[3], previous_quat[0], previous_quat[1], previous_quat[2]])
         prev_omega = np.array([0, 0, 0])
 
         # TODO - should be from dt ???
@@ -192,17 +193,18 @@ class PathPlanner():
             g = [0, 0, 9.81]
             accl += g
 
+
             normalized_accl = accl / LA.norm(accl)
-            # Calculate a desired quaterion
-            #heading = vel / LA.norm(vel)
-            heading = np.array([1, 0 ,0])
+            # Calcula    
+            # heading = vel / LA.norm(vel)
+            heading = [1, 0, 0]
             projection = heading - np.dot(heading, normalized_accl) * normalized_accl
-            # quat_xyz = np.cross(init_ort, projection)
-            # quat_w = np.sqrt((LA.norm(init_ort) ** 2) * (LA.norm(projection ** 2))) + np.dot(init_ort, projection)
-            # quat = np.array([*quat_xyz, quat_w])
-            # quat /= LA.norm(quat)
-            quat = quaterion_2_vectors([1, 0, 0], projection)
-            prev_heading = heading
+            # quat_xyz = np.crote a desired quaterion
+            #heading = vel / LA.norm(vel)
+            quat = quaterion_2_vectors(projection, [1, 0, 0],)
+            quat = np.array([quat[3], quat[0], quat[1], quat[2]])
+            quat /= LA.norm(quat)
+
 
             # Calculater desired omega
             # TODO - fix to be zero desired heading 
@@ -223,11 +225,12 @@ class PathPlanner():
     def getRefPath(self, t_start: float, dt: float, T: float):
         trajectory = []
         _N = int(T/dt)
-        t_s = t_start + dt
+        t_s = t_start + dt 
         # TODO - handling of and of episode ???
         for _ in range(_N):
             if t_s >= self.TS[-1]:
                 trajectory.append([self.waypoint[-1], [0, 0, 0], [1, 0, 0, 0], [0, 0, 0]])
+                continue
 
             i = np.where(t_s >= self.TS)[0][-1]
             t = t_s - self.TS[i]
@@ -243,16 +246,17 @@ class PathPlanner():
             accl += g
 
             normalized_accl = accl / LA.norm(accl)
-            # Calculate a desired quaterion
-            #heading = vel / LA.norm(vel)
-            heading = np.array([1, 0 ,0])
+            # Calcula    
+            # heading = vel / LA.norm(vel)
+            heading = [1, 0, 0]
             projection = heading - np.dot(heading, normalized_accl) * normalized_accl
-            quat = quaterion_2_vectors([1, 0, 0], projection)
+            # quat_xyz = np.crote a desired quaterion
+            #heading = vel / LA.norm(vel)
+            quat = quaterion_2_vectors(projection, [1, 0, 0] )
+            quat = np.array([quat[3], quat[0], quat[1], quat[2]])
+            quat /= LA.norm(quat)
 
-            # Rearenge quaterions
-            quat = [quat[3], *quat[:3]]
-            # quat = [1, 0, 0, 0]
-
+            # Calculater desired omega
             # Calculate desired inputs
             omega = [0, 0, 0]
 
@@ -286,7 +290,7 @@ def quaterion_2_vectors(u: np.array, v: np.array):
     
     if k_cos_theta / k == -1:
         # 180 degree rotation around any orthogonal vector
-        return np.array([*LA.norm(u), 0])
+        return np.array([*(u/LA.norm(u)), 0])
 
     quat = np.array([*np.cross(u, v), k_cos_theta + k])
     quat /= LA.norm(quat)

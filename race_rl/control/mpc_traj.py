@@ -51,13 +51,13 @@ class MPC(object):
         
         # cost matrix for tracking the goal point
         self._Q_track = np.diag([
-            100, 100, 100,  # delta_x, delta_y, delta_z
+            1000, 1000, 1000,  # delta_x, delta_y, delta_z
             0, 0, 0, 0, # delta_qw, delta_qx, delta_qy, delta_qz
             10, 10, 10,
             0, 0, 0]) 
 
         self._Q_goal = np.diag([
-            1000, 1000, 1000,  # delta_x, delta_y, delta_z
+            10000, 10000, 10000,  # delta_x, delta_y, delta_z
             0, 0, 0, 0, # delta_qw, delta_qx, delta_qy, delta_qz
             100, 100, 100,
             0, 0, 0]) 

@@ -8,8 +8,8 @@ from gym_pybullet_drones.utils.enums import DroneModel
 
 
 def run_mpc(track_path: str, mpc_file: str, gui: bool = True):
-    _T = 2
-    _dt = 0.02
+    _T = 1
+    _dt = 0.1
     _N = _T / _dt
     pyb_freq = 250
     ctrl_freq = 50
@@ -44,7 +44,8 @@ def run_mpc(track_path: str, mpc_file: str, gui: bool = True):
         info = {
             "quad_obs": obs,
             "quad_act": quad_act,
-            "pred_traj": pred_traj
+            "pred_traj": pred_traj,
+            "ref_traj": ref_traj
         }
         infos.append(info) 
 
@@ -55,7 +56,7 @@ def run_mpc(track_path: str, mpc_file: str, gui: bool = True):
 
 if __name__ == "__main__":
     mpc_file = "mpc.so"
-    track_path = "assets/tracks/thesis-tracks/split_s.csv"
+    track_path = "assets/tracks/thesis-tracks/long_track.csv"
     gui = True
 
     run_mpc(track_path, mpc_file, gui) 
