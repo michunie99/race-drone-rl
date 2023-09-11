@@ -89,6 +89,7 @@ class PathPlanner():
         #     constraints=optimize.LinearConstraint(np.ones(1), lb=0),
         #     callback=self.callback
         # )['x']
+        scale = 1
         self.scale = scale
         self.T *= scale
         self.TS[1:] = np.cumsum(self.T)
@@ -217,6 +218,50 @@ class PathPlanner():
             trajectory.append(DesiredState(pos, vel, accl, jerk, quat, omega, thrus, torque))
 
         return trajectory
+
+    
+    def getRefPath(self, t_start: float, dt: float, T: float):
+        trajectory = []
+        _N = int(T/dt)
+        t_s = t_start + dt
+        # TODO - handling of and of episode ???
+        for _ in range(_N):
+            if t_s >= self.TS[-1]:
+                trajectory.append([self.waypoint[-1], [0, 0, 0], [1, 0, 0, 0], [0, 0, 0]])
+
+            i = np.where(t_s >= self.TS)[0][-1]
+            t = t_s - self.TS[i]
+            coeff = (self.coef.T)[:,self.order*i:self.order*(i+1)]
+
+            pos  = coeff@polyder(t)
+            vel  = coeff@polyder(t,1)
+            accl = coeff@polyder(t,2)
+            jerk = coeff@polyder(t,3)
+
+            # Add gravityu to the acceleration
+            g = [0, 0, 9.81]
+            accl += g
+
+            normalized_accl = accl / LA.norm(accl)
+            # Calculate a desired quaterion
+            #heading = vel / LA.norm(vel)
+            heading = np.array([1, 0 ,0])
+            projection = heading - np.dot(heading, normalized_accl) * normalized_accl
+            quat = quaterion_2_vectors([1, 0, 0], projection)
+
+            # Rearenge quaterions
+            quat = [quat[3], *quat[:3]]
+            # quat = [1, 0, 0, 0]
+
+            # Calculate desired inputs
+            omega = [0, 0, 0]
+
+            trajectory.extend([*pos, *vel, *quat, *omega])
+            t_s += dt
+
+        return trajectory
+            
+
 
     def isTracjetoryValid(self, trajectory):
         for state in trajectory:

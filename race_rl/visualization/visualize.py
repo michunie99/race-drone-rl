@@ -101,12 +101,12 @@ if __name__ == "__main__":
     from race_rl.path_planing import PathPlanner, check_if_trajectory_valid
     from tqdm import tqdm
 
-    track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
-    T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
+    # track = TrackVis("assets/tracks/thesis-tracks/long_track.csv")
+    # T = convert_for_planer("assets/tracks/thesis-tracks/long_track.csv")
     # track = TrackVis("assets/tracks/thesis-tracks/split_s.csv")
     # T = convert_for_planer("assets/tracks/thesis-tracks/split_s.csv")
-    # track = TrackVis("assets/tracks/thesis-tracks/straight_track.csv")
-    # T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
+    track = TrackVis("assets/tracks/thesis-tracks/straight_track.csv")
+    T = convert_for_planer("assets/tracks/thesis-tracks/straight_track.csv")
     points = np.array(list(map(lambda x: x[0], T)))
 
     print("Calculating")
@@ -117,8 +117,8 @@ if __name__ == "__main__":
     epsilon = 100
 
 
-    pp = PathPlanner(points, max_velocity=8, kt=1000)
-    trajectory = pp.getTrajectory(0.01)
+    pp = PathPlanner(points, max_velocity=10, kt=10)
+    trajectory = pp.getTrajectory(0.001)
     print(f"Finished, optimal time: {pp.TS[-1]}")
 
     track.visualize_trajectory(trajectory)
